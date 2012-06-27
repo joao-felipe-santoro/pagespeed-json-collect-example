@@ -11,6 +11,6 @@ url = [
     'key=' + api_key,
   ].join('&');
 
-open('pagespeed_results.js', 'wb') do |file|
+open('artifacts/pagespeed_results.js', 'wb') do |file|
   file << open(url).read
 end
