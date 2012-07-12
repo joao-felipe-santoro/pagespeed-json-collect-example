@@ -1,7 +1,7 @@
 require 'open-uri'
-require 'FileUtils'
+require 'fileutils'
 api_url = 'https://www.googleapis.com/pagespeedonline/v1/runPagespeed'
-api_key = 'AIzaSyCYnhJjkzR4zz_PlXbjTVoZyUESBoe6Ajc'
+api_key = '<YOUR API KEY>'
 callback = 'runPagespeedCallbacks'
 url_to_test = 'http://www.globo.com'
 

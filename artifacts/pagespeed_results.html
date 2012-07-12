@@ -1,0 +1,185 @@
+<script type="text/javascript">
+var CHART_API_URL = 'http://chart.apis.google.com/chart?';
+
+// Object that will hold the callbacks that process results from the
+// Page Speed Online API.
+var callbacks = {}
+
+// Our JSONP callback. Checks for errors, then invokes our callback handlers.
+function runPagespeedCallbacks(result) {
+  if (result.error) {
+    var errors = result.error.errors;
+    for (var i = 0, len = errors.length; i < len; ++i) {
+      if (errors[i].reason == 'badRequest' && API_KEY == 'yourAPIKey') {
+        alert('Please specify your Google API key in the API_KEY variable.');
+      } else {
+        // NOTE: your real production app should use a better
+        // mechanism than alert() to communicate the error to the user.
+        alert(errors[i].message);
+      }
+    }
+    return;
+  }
+
+  // Dispatch to each function on the callbacks object.
+  for (var fn in callbacks) {
+    var f = callbacks[fn];
+    if (typeof f == 'function') {
+      callbacks[fn](result);
+    }
+  }
+}
+
+// Invoke the callback that fetches results. Async here so we're sure
+// to discover any callbacks registered below, but this can be
+// synchronous in your code.
+callbacks.displayPageSpeedScore = function(result) {
+  var score = result.score;
+  // Construct the query to send to the Google Chart Tools.
+  var query = [
+    'chs=300x140',
+    'cht=gom',
+    'chd=t:' + score,
+    'chxt=x,y',
+    'chxl=0:|' + score,
+  ].join('&');
+  var i = document.createElement('img');
+  i.src = CHART_API_URL + query;
+  document.getElementById('scoreMeter_img').src = i.src;
+};
+var RESOURCE_TYPE_INFO = [
+  {label: 'JavaScript', field: 'javascriptResponseBytes', color: 'e2192c'},
+  {label: 'Images', field: 'imageResponseBytes', color: 'f3ed4a'},
+  {label: 'CSS', field: 'cssResponseBytes', color: 'ff7008'},
+  {label: 'HTML', field: 'htmlResponseBytes', color: '43c121'},
+  {label: 'Flash', field: 'flashResponseBytes', color: 'f8ce44'},
+  {label: 'Text', field: 'textResponseBytes', color: 'ad6bc5'},
+  {label: 'Other', field: 'otherResponseBytes', color: '1051e8'},
+];
+
+callbacks.displayResourceSizeBreakdown = function(result) {
+  var stats = result.pageStats;
+  var labels = [];
+  var data = [];
+  var colors = [];
+  var totalBytes = 0;
+  var largestSingleCategory = 0;
+  for (var i = 0, len = RESOURCE_TYPE_INFO.length; i < len; ++i) {
+    var label = RESOURCE_TYPE_INFO[i].label;
+    var field = RESOURCE_TYPE_INFO[i].field;
+    var color = RESOURCE_TYPE_INFO[i].color;
+    if (field in stats) {
+      var val = Number(stats[field]);
+      totalBytes += val;
+      if (val > largestSingleCategory) largestSingleCategory = val;
+      labels.push(label);
+      data.push(val);
+      colors.push(color);
+    }
+  }
+  // Construct the query to send to the Google Chart Tools.
+  var query = [
+    'chs=300x140',
+    'cht=p',
+    'chts=' + ['000000', 16].join(','),
+    'chco=' + colors.join('|'),
+    'chd=t:' + data.join(','),
+    'chdl=' + labels.join('|'),
+    'chdls=000000,14',
+    'chp=1.6',
+    'chds=0,' + largestSingleCategory,
+  ].join('&');
+  var i = document.createElement('img');
+  i.src = 'http://chart.apis.google.com/chart?' + query;
+  document.getElementById('weightChart_img').src = i.src;
+};
+callbacks.displayTopPageSpeedSuggestions = function(result) {
+  var results = [];
+  var ruleResults = result.formattedResults.ruleResults;
+  for (var i in ruleResults) {
+    var ruleResult = ruleResults[i];
+    // Don't display lower-impact suggestions.
+    if (ruleResult.ruleImpact <= 0.0) continue;
+    results.push({name: ruleResult.localizedRuleName,
+                  impact: ruleResult.ruleImpact,
+				  score: ruleResult.ruleScore});
+  }
+  results.sort(sortByImpact);
+
+  if (results.length > 0) {
+	var table = document.getElementById('suggestions');
+	var tBody = table.getElementsByTagName('tbody')[0];
+	for (var i = 0, len = results.length; i < len; ++i) {
+		var new_tr = document.createElement('tr');
+		var new_td_rule = document.createElement('td');
+		var new_td_impact = document.createElement('td');
+		var new_td_score = document.createElement('td');
+		new_td_rule.innerHTML = results[i].name;
+		new_td_rule.style.border="1px solid black";
+		new_td_impact.innerHTML = results[i].impact;
+		new_td_impact.style.border="1px solid black";
+		new_td_score.innerHTML = results[i].score;
+		new_td_score.style.border="1px solid black";		
+
+		new_tr.appendChild(new_td_rule);
+		new_tr.appendChild(new_td_impact);
+		new_tr.appendChild(new_td_score);
+		tBody.appendChild(new_tr);
+	}
+  } else {
+    var div = document.getElementById('suggestions_div');
+    div.innerHTML = 'No high impact suggestions. Good job!';
+  }
+};
+
+// Helper function that sorts results in order of impact.
+function sortByImpact(a, b) { return b.impact - a.impact; }
+</script>
+<script type="text/javascript" async src="pagespeed_results.js"></script>
+<body>
+<table style="float:center">
+	<tbody>
+		<tr>
+			<td>
+				<div id="scoreMeter" style="text-align:center">
+					<p>Page Score</p>
+					<img id="scoreMeter_img" src="" />
+				</div>
+			</td>
+			<td>
+				<div id="weightChart" style="text-align:center">
+					<p>Weight Chart</p>
+					<img id="weightChart_img" src="" />
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2">
+				<div style="text-align:center">
+				<h1>Suggestions</h1>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2">
+				<div id="suggestions_div">
+					<table id="suggestions" style="float:center">
+						<thead>
+							<tr>
+								<td style="border:1px solid;">Rule</td>
+								<td style="border:1px solid;">Impact</td>
+								<td style="border:1px solid;">Score</td>
+							</tr>
+						<thead>
+						<tbody>
+						
+						<tbody>
+				</div>
+			</td>
+		</tr>
+	<tbody>
+</table>	
+</body>
+
+
+
